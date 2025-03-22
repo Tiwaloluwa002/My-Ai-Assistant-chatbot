@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Assistant } from "./assistants/deepseekai";
 import { Loader } from "./components/Loader/Loader";
 import { Chat } from "./components/Chat/Chat";
@@ -10,15 +10,20 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.toggle("dark", isDarkMode);
+  }, [isDarkMode]);
 
   function updateLastMessageContent(content) {
-    setMessages((prevMessages) =>
-      prevMessages.map((message, index) =>
-        index === prevMessages.length - 1
-          ? { ...message, content: `${message.content}${content}` }
-          : message
-      )
-    );
+    setMessages((prevMessages) => {
+      const lastMessage = prevMessages[prevMessages.length - 1];
+      return [
+        ...prevMessages.slice(0, -1),
+        { ...lastMessage, content: lastMessage.content + content },
+      ];
+    });
   }
 
   function addMessage(message) {
@@ -26,8 +31,11 @@ function App() {
   }
 
   async function handleContentSend(content) {
+    if (!content.trim()) return;
+
     addMessage({ content, role: "user" });
     setIsLoading(true);
+
     try {
       const result = await assistant.chatStream(content, messages);
       let isFirstChunk = false;
@@ -45,6 +53,7 @@ function App() {
 
       setIsStreaming(false);
     } catch (error) {
+      console.error("Error processing request:", error);
       addMessage({
         content: "Sorry, I couldn't process your request. Please try again!",
         role: "system",
@@ -55,19 +64,35 @@ function App() {
   }
 
   return (
-    <div className={styles.App}>
+    <div className={`${styles.App} ${isDarkMode ? styles.dark : ""}`}>
       {isLoading && <Loader />}
       <header className={styles.Header}>
-        <img className={styles.Logo} src="/chat-bot.png" />
+        <img className={styles.Logo} src="/chat-bot.png" alt="Chatbot Logo" />
         <h2 className={styles.Title}>AI Chatbot</h2>
+        <button
+          className={styles.ThemeToggle}
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {isDarkMode ? "🌞" : "🌙"}
+        </button>
       </header>
-      <div className={styles.ChatContainer}>
+      <div className={styles.ChatContainer} aria-live="polite">
         <Chat messages={messages} />
+        {isStreaming && (
+          <div className={styles.typingIndicator}>
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        )}
       </div>
-      <Controls
-        isDisabled={isLoading || isStreaming}
-        onSend={handleContentSend}
-      />
+      <div className={styles.Controls}>
+        <Controls
+          isDisabled={isLoading || isStreaming}
+          onSend={handleContentSend}
+        />
+      </div>
     </div>
   );
 }

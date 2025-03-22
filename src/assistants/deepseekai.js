@@ -1,14 +1,23 @@
-import OpenAI from "openai";
-import { Assistant as OpenAIAssistant } from "../assistants/openai";
+import { CohereClient } from "cohere-ai";
 
-const openai = new OpenAI({
-  baseURL: "https://api.deepseek.com",
-  apiKey: import.meta.env.VITE_DEEPSEEK_AI_API_KEY,
-  dangerouslyAllowBrowser: true,
+const cohere = new CohereClient({
+  token: import.meta.env.VITE_COHERE_API_KEY,
 });
 
-export class Assistant extends OpenAIAssistant {
-  constructor(model = "deepseek-chat", client = openai) {
-    super(model, client);
+export class Assistant {
+  constructor(model = "command") {
+    this.model = model;
+    this.client = cohere;
+  }
+
+  async chatStream(content, messages) {
+    const response = await this.client.generate({
+      model: this.model,
+      prompt: content,
+      max_tokens: 100,
+    });
+
+    // Simulate streaming by yielding chunks
+    return [response.generations[0].text];
   }
 }
